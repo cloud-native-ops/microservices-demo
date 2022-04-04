@@ -22,7 +22,7 @@ kind: Deployment
 metadata:
   name: loadgenerator
 spec:
-  replicas: 4
+  replicas: 1
   selector:
     matchLabels:
       app: loadgenerator
@@ -54,12 +54,13 @@ spec:
           value: "frontend:80"
       containers:
       - name: main
-        image: gcr.io/google-samples/microservices-demo/loadgenerator:v0.3.6
+        #image: gcr.io/google-samples/microservices-demo/loadgenerator:v0.3.6
+        image: dlabajo/loadgenerator:v0.1.1
         env:
         - name: FRONTEND_ADDR
           value: "frontend:80"
         - name: USERS
-          value: "10"
+          value: "2000"
         resources:
           requests:
             cpu: 300m
