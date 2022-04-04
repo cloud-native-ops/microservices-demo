@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
 import random
 from locust import HttpUser, TaskSet, between
 
@@ -33,8 +34,12 @@ def index(l):
 
 def setCurrency(l):
     currencies = ['EUR', 'USD', 'JPY', 'CAD']
+    #l.client.post("/setCurrency",
+    #    {'currency_code': random.choice(currencies)})
     l.client.post("/setCurrency",
-        {'currency_code': random.choice(currencies)})
+        {'currency_code': np.random.choice(a=currencies, 
+                                           size=1, 
+                                           replace=True, p=[.35, .6, .0, .05])[0]})
 
 def browseProduct(l):
     l.client.get("/product/" + random.choice(products))
@@ -43,11 +48,12 @@ def viewCart(l):
     l.client.get("/cart")
 
 def addToCart(l):
-    product = random.choice(products)
+    product = np.random.choice(a=products, size=1, replace=True, 
+                               p=[.0, .043, .07, .24, .007, .0, .22, .17, .25])[0]
     l.client.get("/product/" + product)
     l.client.post("/cart", {
         'product_id': product,
-        'quantity': random.choice([1,2,3,4,5,10])})
+        'quantity': random.choice([1,2,3,4,5])})
 
 def checkout(l):
     addToCart(l)
@@ -74,8 +80,8 @@ class UserBehavior(TaskSet):
         browseProduct: 10,
         addToCart: 2,
         viewCart: 3,
-        checkout: 1}
+        checkout: 2}
 
 class WebsiteUser(HttpUser):
     tasks = [UserBehavior]
-    wait_time = between(1, 10)
+    wait_time = between(2, 6)
