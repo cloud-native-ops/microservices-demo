@@ -78,7 +78,7 @@ kind: Deployment
 metadata:
   name: checkoutservice
 spec:
-  replicas: 4
+  replicas: 8
   selector:
     matchLabels:
       app: checkoutservice
@@ -148,7 +148,7 @@ kind: Deployment
 metadata:
   name: recommendationservice
 spec:
-  replicas: 4
+  replicas: 8
   selector:
     matchLabels:
       app: recommendationservice
