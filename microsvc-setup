@@ -27,7 +27,7 @@ kubectl config set-context --current --namespace=monitoring
 
 # Deploy prometheus-kafka-adapter
 git clone git@github.com:cloud-native-ops/prometheus-kafka-adapter.git
-cd prometheus-kafka-adapter/helm/prometheus-kafka-adapter
+cd ~/dvl/prometheus-kafka-adapter/helm/prometheus-kafka-adapter
 
 # Update values.yaml
 ```
@@ -53,6 +53,7 @@ helm install monitoring prometheus-community/kube-prometheus-stack -n monitoring
 
 # Option 2
 # Clone repo
+cd ~/dvl
 git clone git@github.com:cloud-native-ops/helm-charts.git
 cd helm-charts/charts/kube-prometheus-stack
 # Update values.yaml 
@@ -62,7 +63,7 @@ helm repo add grafana-help-chart https://grafana.github.io/helm-charts
 helm repo update
 helm dependency build
 helm template . --values values.yaml > kube-prometheus-stack.yaml
-
+kubectl apply -f kube-prometheus-stack.yaml
     
 
 # port forward localhost 3000 to monitoring-grafana 3000
