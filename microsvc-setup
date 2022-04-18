@@ -1,93 +1,156 @@
 
+# Data Engineering Example: Ingest Application and System Logs into Hadoop
+Scrape metrics from a micro-service demo application using Prometheus and remote-write to a Kafka broker using prometheus-kafka adapter. Spark streaming streams metrics from Kafka and sinks data into Hadoop for analytics.
 
-# SETUP KUBERNETES APPLICATION
+<br><br>
+
+## `I.` SETUP KUBERNETES CLUSTER
+A simple setup is to use minikube:
+```
 minikube start  --cpus='4' --memory='8192m' --nodes=5
 kubectl create namespace microsvc-demo
 kubectl config set-context --current --namespace=microsvc-demo
 kubectl taint nodes minikube application=microsvc-demo:NoSchedule
+```
+
+<br>
+
+## `II.` DEPLOY DEMO APPLICATION
+Deploy the micro-service demo application; start with `adservice` before proceeding with other services.
+
+`kubectl apply -f release/adservice-kubernetes-manifests.yaml -n microsvc-demo`
 
 
+Make sure adservice is complete before running the custom below:
 
-# DEPLOY DEMO APPLICATION
-# Deploy a demo app. Need to do adservice first
-kubectl apply -f release/adservice-kubernetes-manifests.yaml -n microsvc-demo
-
-# make sure adservice is complete before running the custom below
-kubectl apply -f release/custom-kubernetes-manifests.yaml -n microsvc-demo
-
-# port-forward the front-end service 8080:80
-http://localhost:8080
+`kubectl apply -f release/custom-kubernetes-manifests.yaml -n microsvc-demo`
 
 
+Port-forward the front-end service 8080:80:  http://localhost:8080
 
-# MONITORING
-# Setup and deploy prometheus; Create namespace for monitoring first
+<br>
+
+## `III.` CONFIGURE MONITORING
+Setup and deploy prometheus; create namespace for monitoring first
+
+```
 kubectl create namespace monitoring
 kubectl config set-context --current --namespace=monitoring
+```
 
-# Deploy prometheus-kafka-adapter
+### `1.` Deploy prometheus-kafka-adapter  
+
+```
 git clone git@github.com:cloud-native-ops/prometheus-kafka-adapter.git
 cd ~/dvl/prometheus-kafka-adapter/helm/prometheus-kafka-adapter
-
-# Update values.yaml
 ```
-    # defines kafka endpoint and port, defaults to kafka:9092.
-    KAFKA_BROKER_LIST: "137.184.163.23:9092"
-    # defines kafka topic to be used, defaults to metrics.
-    KAFKA_TOPIC: "test"
+
+Check if `values.yaml` config is ok. By default it is referring to a kafka broker server dns name and 'microservices-demo' kafka topic.
 ```
-helm template . --values values.yaml > prometheus-kafka-adapter.yaml
-# 1. Check that the prometheus-kafka-adapter.yaml contains namespace "monitoring" and 
-#       not "default" (the set-context --current --namespace=monitoring achieves this)
-# 2. Remove readiness and liveliness probe (due to 404s)
-kubectl apply -f prometheus-kafka-adapter.yaml
-# Get the service name of the adapter e.g. :    release-name-prometheus-kafka-adapter 
+environment:
+  # defines kafka endpoint and port, defaults to kafka:9092.
+  KAFKA_BROKER_LIST: "kafka-broker:9092"
+  # defines kafka topic to be used, defaults to metrics.
+  KAFKA_TOPIC: "microservices-demo"
+```
+> NOTE: Adjust this accordingly to fit your environment. 
 
+<br>
 
-# Deploy prometheus/grafana
-# Option 1
-# Deploy Prometheus (one-time thing; run 2 lines below if never run before)
+#### Configure `kafka-broker` DNS name in `/etc/hosts`:
+Add an entry in the linux host `/etc/hosts` file where kubernetes is running for the kafka-broker IP address:
+```
+<ip address>    kafka-broker
+```
+
+<br>
+
+### `2.` Install prometheus kafka adapter
+After  configuration step above and checking values are ok, install the prometheus kafka adapter.
+
+```
+helm template --name-template=prometheus-kafka-adapter . --values values.yaml | kubectl apply -n monitoring -f -
+```
+
+<br>
+
+#### Deploy debugging pod
+This step is optional.
+
+`kubectl create deployment debug-deployment --image=praqma/network-multitool -n monitoring`
+
+<br>
+
+### `3.` Deploy prometheus/grafana
+**Option 1:** Deploy Prometheus (one-time thing; run 2 lines below if never run before)
+```
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 helm install monitoring prometheus-community/kube-prometheus-stack -n monitoring
+```
 
-# Option 2
-# Clone repo
+<br>
+
+**Option 2** (THIS NEEDS TO BE RE-VISITED)  
+Clone repo and configure:
+```
 cd ~/dvl
 git clone git@github.com:cloud-native-ops/helm-charts.git
 cd helm-charts/charts/kube-prometheus-stack
-# Update values.yaml 
-    remoteWrite: [release-name-prometheus-kafka-adapter]
 
-helm repo add grafana-help-chart https://grafana.github.io/helm-charts
+## Update values.yaml:
+#    remoteWrite: [release-name-prometheus-kafka-adapter]
+
+helm repo add grafana-helm-chart https://grafana.github.io/helm-charts
 helm repo update
 helm dependency build
-helm template . --values values.yaml > kube-prometheus-stack.yaml
+helm template --name-template=monitoring . --values values.yaml > kube-prometheus-stack.yaml
 kubectl apply -f kube-prometheus-stack.yaml
-    
+``` 
 
-# port forward localhost 3000 to monitoring-grafana 3000
-http://localhost:3000
+<br>
 
-
-
-
-# Last but not the least, run the load generator
-# ADJUST THE NUMBER OF USERS IF YOU MUST
-kubectl apply -f release/load-generator-kubernetes-manifests.yaml
+After deploying prometheus/grafana, port forward localhost 3000 to monitoring-grafana 3000:  http://localhost:3000
 
 
-# Cleanup
+#### Configure Prometheus `remote-write`.
 
+Change directory to the prometheus-kafka-adapter directory:
+
+`cd ~/dvl/prometheus-kafka-adapter/config`
+
+To enable remote-write, run helm upgrade on the enable configuration file:
+```
+helm upgrade -f enable-remote-write.yaml monitoring prometheus-community/kube-prometheus-stack
+```
+
+To **disable** remote-write, run helm upgrade on the disable configuration file:
+
+```
+helm upgrade -f disable-remote-write.yaml monitoring prometheus-community/kube-prometheus-stack
+```
+
+
+
+<br>
+
+## `IV.` LOAD GENERATOR
+Simulate the traffic to the micro-service.  Adjust the number of users if needed.
+
+`kubectl apply -f release/load-generator-kubernetes-manifests.yaml`
+
+<br>
+
+
+## `V.` CLEANUP
+```
 minikube stop
 minikube delete
+```
 
+<br>
 
-
-
-# build
+## `VI.` MISCELLANEOUS
+#### Build
 minikube start  --cpus='4' --memory='8192m'
 skaffold run
-
-
-
