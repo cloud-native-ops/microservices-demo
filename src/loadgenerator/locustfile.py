@@ -29,8 +29,10 @@ products = [
     'LS4PSXUNUM',
     'OLJCESPC7Z']
 
+
 def index(l):
     l.client.get("/")
+
 
 def setCurrency(l):
     currencies = ['EUR', 'USD', 'JPY', 'CAD']
@@ -41,11 +43,14 @@ def setCurrency(l):
                                            size=1, 
                                            replace=True, p=[.35, .6, .0, .05])[0]})
 
+
 def browseProduct(l):
     l.client.get("/product/" + random.choice(products))
 
+
 def viewCart(l):
     l.client.get("/cart")
+
 
 def addToCart(l):
     product = np.random.choice(a=products, size=1, replace=True, 
@@ -54,6 +59,7 @@ def addToCart(l):
     l.client.post("/cart", {
         'product_id': product,
         'quantity': random.choice([1,2,3,4,5])})
+
 
 def checkout(l):
     addToCart(l)
@@ -70,6 +76,7 @@ def checkout(l):
         'credit_card_cvv': '672',
     })
 
+
 class UserBehavior(TaskSet):
 
     def on_start(self):
@@ -81,6 +88,7 @@ class UserBehavior(TaskSet):
         addToCart: 2,
         viewCart: 3,
         checkout: 2}
+
 
 class WebsiteUser(HttpUser):
     tasks = [UserBehavior]
