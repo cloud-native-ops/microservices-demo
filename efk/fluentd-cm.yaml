@@ -9,7 +9,7 @@ data:
     # Get the logs from the containers running in the node
     <source>
       @type tail
-      path /var/log/containers/*.log
+      path /var/log/containers/*_microsvc-demo_*.log
       # exclude Fluentd logs
       exclude_path /var/log/containers/*fluentd*.log
       pos_file /opt/bitnami/fluentd/logs/buffers/fluentd-docker.pos
@@ -22,27 +22,56 @@ data:
       </parse>
     </source>
     # enrich with kubernetes metadata
-    <filter kubernetes.**>
-      @type kubernetes_metadata
+    #<filter kubernetes.**>
+    #  @type #kubernetes_metadata
+    #</filter>
+    <filter **>
+      @type grep
+      <exclude>
+        key log
+        pattern (healthz|Health|Tracing|Profiling|Profiler|listening|initializing|initialized|Initialization|Microsoft.Hosting|disabled|deprecated|googleapis|currencyservice|1*:C|1*:M|Async|recommendation|env platform|received request|Failed to fetch|\||Small test|small test|"#")
+      </exclude>
     </filter>
   fluentd-output.conf: |
     # Throw the healthcheck to the standard output instead of forwarding it
     <match fluentd.healthcheck>
       @type null
     </match>
-    # Forward all logs to the aggregators
+
     <match **>
-      @type stdout
-      #<server>
-      #  host fluentd-0.fluentd-headless.default.svc.cluster.local
-      #  port 24224
-      #</server>
+      #@type stdout
+      <server>
+        host fluentd-0.fluentd-headless.default.svc.cluster.local
+        port 24224
+      </server>
+      
+      @type kafka2
+      brokers kafka-spark:9092
+      use_event_time true
+
+      # topic settings
+      topic_key topic
+      default_topic microservices-demo
+
+      # data type settings
+      <format>
+        @type json
+      </format>
+
+      # producer settings
+      max_send_retries 1
+      required_acks -1
+      compression_codec gzip
+
+      # buffer settings
       <buffer>
         @type file
-        path /opt/bitnami/fluentd/logs/buffers/logs.buffer
+        #path /opt/bitnami/fluentd/logs/buffers-stdout/logs.buffer
+        path /opt/bitnami/fluentd/logs/buffers-kafka/logs.buffer
         flush_thread_count 2
         flush_interval 5s
       </buffer>
+      
     </match>
   fluentd.conf: |
     # Ignore fluentd own events
